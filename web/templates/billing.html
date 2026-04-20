@@ -35,7 +35,6 @@
                 </p>
             </div>
 
-            <!-- Success/Cancelled banners -->
             <div id="success-banner" class="card" style="display:none; border-color: var(--green); background: var(--green-soft);">
                 <p style="color: var(--green); font-weight: 600;">Payment successful! Your plan has been upgraded.</p>
             </div>
@@ -45,55 +44,64 @@
 
             <div class="pricing-grid">
                 {% for plan_id, plan in plans.items() %}
-                {% if plan_id not in ['lifetime', 'free'] %}
+                {% if plan_id not in ['lifetime'] %}
                 <div class="pricing-card {% if user.plan == plan_id %}featured{% endif %}">
-                    <h3>{{ plan.name }}</h3>
-                    <div class="price">
-                        <span class="amount">${{ plan.price }}</span>
-                        <span class="period">/month</span>
+                    <div class="pricing-card-top">
+                        <h3>{{ plan.name }}</h3>
+                        <div class="price">
+                            <span class="amount">${{ plan.price }}</span>
+                            <span class="period">/month</span>
+                        </div>
+                        <ul>
+                            {% for feature in plan.features %}
+                            <li>{{ feature }}</li>
+                            {% endfor %}
+                        </ul>
                     </div>
-                    <ul>
-                        {% for feature in plan.features %}
-                        <li>{{ feature }}</li>
-                        {% endfor %}
-                    </ul>
-                    {% if user.plan == plan_id %}
-                        <button class="btn btn-outline btn-block" disabled>Current Plan</button>
-                    {% else %}
-                        <button class="btn {% if plan_id == 'pro' %}btn-purple{% else %}btn-primary{% endif %} btn-block" 
-                                onclick="checkout('{{ plan_id }}')">
-                            Upgrade to {{ plan.name }}
-                        </button>
-                        <button class="btn btn-outline btn-block" style="margin-top: 0.5rem; font-size: 0.8rem;"
-                                onclick="cryptoCheckout('{{ plan_id }}')">
-                            Pay with Crypto
-                        </button>
-                    {% endif %}
+                    <div class="pricing-card-bottom">
+                        {% if user.plan == plan_id %}
+                            <button class="btn btn-outline btn-block" disabled>Current Plan</button>
+                        {% elif plan_id == 'free' %}
+                            <form action="/api/billing/upgrade" method="POST">
+                                <input type="hidden" name="plan" value="free">
+                                <button type="submit" class="btn btn-outline btn-block">Downgrade</button>
+                            </form>
+                        {% else %}
+                            <button class="btn {% if plan_id == 'pro' %}btn-purple{% else %}btn-primary{% endif %} btn-block" 
+                                    onclick="openPaymentModal('{{ plan_id }}', '{{ plan.name }}', {{ plan.price }})">
+                                Upgrade to {{ plan.name }}
+                            </button>
+                        {% endif %}
+                    </div>
                 </div>
                 {% endif %}
                 {% endfor %}
+            </div>
+        </div>
+    </div>
 
-                <!-- Free plan card -->
-                <div class="pricing-card {% if user.plan == 'free' %}featured{% endif %}">
-                    <h3>Free</h3>
-                    <div class="price">
-                        <span class="amount">$0</span>
-                        <span class="period">/month</span>
-                    </div>
-                    <ul>
-                        <li>5 videos/month</li>
-                        <li>Watermarked</li>
-                        <li>720p</li>
-                    </ul>
-                    {% if user.plan == 'free' %}
-                        <button class="btn btn-outline btn-block" disabled>Current Plan</button>
-                    {% else %}
-                        <form action="/api/billing/upgrade" method="POST">
-                            <input type="hidden" name="plan" value="free">
-                            <button type="submit" class="btn btn-outline btn-block">Downgrade to Free</button>
-                        </form>
-                    {% endif %}
-                </div>
+    <!-- Payment Method Modal -->
+    <div class="modal-overlay" id="payment-modal" style="display:none">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Choose Payment Method</h3>
+                <button class="modal-close" onclick="closePaymentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-muted); margin-bottom: 1.25rem;">
+                    <span id="modal-plan-name"></span> Plan — <strong id="modal-plan-price"></strong>/month
+                </p>
+                <button class="btn btn-primary btn-block modal-pay-btn" onclick="payStripe()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    Pay with Card
+                </button>
+                <button class="btn btn-outline btn-block modal-pay-btn" onclick="payCrypto()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.5 8h4a2.5 2.5 0 010 5h-4V8zm0 5h5a2.5 2.5 0 010 5h-5v-5zm0-5v5m0-10v5"/></svg>
+                    Pay with Crypto
+                </button>
+                <p style="color: var(--text-light); font-size: 0.78rem; text-align: center; margin-top: 1rem;">
+                    BTC, ETH, USDC, USDT accepted
+                </p>
             </div>
         </div>
     </div>
@@ -105,7 +113,8 @@
     </footer>
 
     <script>
-        // Dark mode
+        let selectedPlan = '';
+
         function toggleTheme() {
             const html = document.documentElement;
             const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -122,7 +131,7 @@
             });
         })();
 
-        // Check URL params for success/cancel
+        // URL banners
         const params = new URLSearchParams(window.location.search);
         if (params.get('success') === 'true') {
             document.getElementById('success-banner').style.display = 'block';
@@ -133,14 +142,30 @@
             window.history.replaceState({}, '', '/billing');
         }
 
-        // Stripe checkout
-        async function checkout(plan) {
-            const btn = event.target;
+        // Modal
+        function openPaymentModal(plan, name, price) {
+            selectedPlan = plan;
+            document.getElementById('modal-plan-name').textContent = name;
+            document.getElementById('modal-plan-price').textContent = '$' + price;
+            document.getElementById('payment-modal').style.display = 'flex';
+        }
+
+        function closePaymentModal() {
+            document.getElementById('payment-modal').style.display = 'none';
+        }
+
+        // Close on overlay click
+        document.getElementById('payment-modal').addEventListener('click', function(e) {
+            if (e.target === this) closePaymentModal();
+        });
+
+        async function payStripe() {
+            const btn = event.target.closest('.modal-pay-btn');
             btn.disabled = true;
             btn.textContent = 'Redirecting...';
             
             const formData = new FormData();
-            formData.append('plan', plan);
+            formData.append('plan', selectedPlan);
             
             try {
                 const res = await fetch('/api/billing/checkout', {
@@ -154,22 +179,21 @@
                 } else {
                     alert(data.detail || 'Payment error');
                     btn.disabled = false;
-                    btn.textContent = 'Upgrade';
+                    btn.innerHTML = 'Pay with Card';
                 }
             } catch (e) {
-                alert('Payment error: ' + e.message);
+                alert('Error: ' + e.message);
                 btn.disabled = false;
             }
         }
 
-        // Crypto checkout
-        async function cryptoCheckout(plan) {
-            const btn = event.target;
+        async function payCrypto() {
+            const btn = event.target.closest('.modal-pay-btn');
             btn.disabled = true;
             btn.textContent = 'Redirecting...';
             
             const formData = new FormData();
-            formData.append('plan', plan);
+            formData.append('plan', selectedPlan);
             
             try {
                 const res = await fetch('/api/billing/crypto', {
@@ -183,10 +207,10 @@
                 } else {
                     alert(data.detail || 'Crypto payment error');
                     btn.disabled = false;
-                    btn.textContent = 'Pay with Crypto';
+                    btn.innerHTML = 'Pay with Crypto';
                 }
             } catch (e) {
-                alert('Payment error: ' + e.message);
+                alert('Error: ' + e.message);
                 btn.disabled = false;
             }
         }

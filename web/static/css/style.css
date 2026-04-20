@@ -524,6 +524,17 @@ a {
     border: 1px solid var(--border);
     text-align: center;
     transition: all var(--transition);
+    display: flex;
+    flex-direction: column;
+}
+
+.pricing-card-top {
+    flex: 1;
+}
+
+.pricing-card-bottom {
+    margin-top: auto;
+    padding-top: 1rem;
 }
 
 .pricing-card:hover {
@@ -1002,4 +1013,70 @@ a {
         gap: 0.75rem;
         align-items: flex-start;
     }
+}
+
+
+/* ─── Payment Modal ────────────────────────────────────── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+}
+
+.modal {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 380px;
+    margin: 1rem;
+    box-shadow: var(--shadow-lg);
+    animation: fadeInUp 0.25s ease;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem 0;
+}
+
+.modal-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--text);
+}
+
+.modal-body {
+    padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.modal-pay-btn {
+    margin-bottom: 0.6rem;
+    justify-content: center;
+    gap: 0.6rem;
+}
+
+.modal-pay-btn svg {
+    flex-shrink: 0;
 }

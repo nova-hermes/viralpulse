@@ -12,6 +12,7 @@ from typing import Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests as http_requests
+import stripe
 
 from fastapi import FastAPI, Request, Depends, HTTPException, Form, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -136,6 +137,24 @@ PLANS = {
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
+
+# ─── Payment Config ──────────────────────────────────────────────────
+
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+NOWPAYMENTS_API_KEY = os.environ.get("NOWPAYMENTS_API_KEY", "")
+APP_URL = os.environ.get("APP_URL", "https://viralpulse-production.up.railway.app")
+
+if STRIPE_SECRET_KEY:
+    stripe.api_key = STRIPE_SECRET_KEY
+
+# Price IDs (create these in Stripe Dashboard)
+STRIPE_PRICES = {
+    "starter": os.environ.get("STRIPE_PRICE_STARTER", ""),
+    "pro": os.environ.get("STRIPE_PRICE_PRO", ""),
+    "agency": os.environ.get("STRIPE_PRICE_AGENCY", ""),
+}
 
 # ─── App ──────────────────────────────────────────────────────────────
 
@@ -404,11 +423,64 @@ async def get_user_info(user: dict = Depends(require_user)):
 
 # ─── Routes: Billing API ──────────────────────────────────────────────
 
+@app.post("/api/billing/checkout")
+async def create_checkout(plan: str = Form(...), user: dict = Depends(require_user)):
+    """Create Stripe checkout session."""
+    if plan not in PLANS or plan in ("free", "lifetime"):
+        raise HTTPException(400, "Invalid plan")
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(500, "Stripe not configured")
+    price_id = STRIPE_PRICES.get(plan)
+    if not price_id:
+        raise HTTPException(400, "No Stripe price configured for this plan")
+    try:
+        session = stripe.checkout.Session.create(
+            customer_email=user["email"],
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            success_url=f"{APP_URL}/billing?success=true",
+            cancel_url=f"{APP_URL}/billing?cancelled=true",
+            metadata={"user_id": str(user["id"]), "plan": plan},
+        )
+        return {"checkout_url": session.url}
+    except Exception as e:
+        raise HTTPException(500, f"Stripe error: {str(e)}")
+
+@app.post("/api/billing/crypto")
+async def create_crypto_payment(plan: str = Form(...), user: dict = Depends(require_user)):
+    """Create NOWPayments crypto invoice."""
+    if plan not in PLANS or plan in ("free", "lifetime"):
+        raise HTTPException(400, "Invalid plan")
+    if not NOWPAYMENTS_API_KEY:
+        raise HTTPException(500, "NOWPayments not configured")
+    plan_info = PLANS[plan]
+    try:
+        resp = http_requests.post(
+            "https://api.nowpayments.io/v1/invoice",
+            headers={"x-api-key": NOWPAYMENTS_API_KEY},
+            json={
+                "price_amount": plan_info["price"],
+                "price_currency": "usd",
+                "order_id": f"vp_{user['id']}_{plan}_{secrets.token_hex(8)}",
+                "order_description": f"ViralPulse {plan_info['name']} Plan - Monthly",
+                "ipn_callback_url": f"{APP_URL}/api/billing/crypto/webhook",
+                "success_url": f"{APP_URL}/billing?success=true",
+                "cancel_url": f"{APP_URL}/billing?cancelled=true",
+            }
+        )
+        data = resp.json()
+        if "invoice_url" in data:
+            return {"checkout_url": data["invoice_url"]}
+        raise HTTPException(500, f"NOWPayments error: {data}")
+    except Exception as e:
+        raise HTTPException(500, f"NOWPayments error: {str(e)}")
+
 @app.post("/api/billing/upgrade")
 async def upgrade_plan(plan: str = Form(...), user: dict = Depends(require_user)):
+    """Direct plan upgrade (testing/free)."""
     if plan not in PLANS:
         raise HTTPException(400, "Invalid plan")
-    
     plan_info = PLANS[plan]
     conn = get_db()
     with conn.cursor() as cur:
@@ -418,8 +490,67 @@ async def upgrade_plan(plan: str = Form(...), user: dict = Depends(require_user)
         )
         conn.commit()
     conn.close()
-    
     return {"status": "upgraded", "plan": plan, "limit": plan_info["limit"]}
+
+@app.post("/api/billing/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events."""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        raise HTTPException(400, "Invalid webhook signature")
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_id = int(session["metadata"]["user_id"])
+        plan = session["metadata"]["plan"]
+        plan_info = PLANS.get(plan)
+        if plan_info:
+            conn = get_db()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET plan = %s, videos_limit = %s, updated_at = NOW() WHERE id = %s",
+                    (plan, plan_info["limit"], user_id)
+                )
+                conn.commit()
+            conn.close()
+            print(f"Stripe: User {user_id} upgraded to {plan}")
+    elif event["type"] == "customer.subscription.deleted":
+        customer_email = event["data"]["object"].get("customer_email", "")
+        if customer_email:
+            conn = get_db()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET plan = 'free', videos_limit = 5, updated_at = NOW() WHERE email = %s",
+                    (customer_email,)
+                )
+                conn.commit()
+            conn.close()
+    return {"status": "ok"}
+
+@app.post("/api/billing/crypto/webhook")
+async def crypto_webhook(request: Request):
+    """Handle NOWPayments IPN."""
+    payload = await request.json()
+    payment_status = payload.get("payment_status")
+    order_id = payload.get("order_id", "")
+    if payment_status == "finished" and order_id.startswith("vp_"):
+        parts = order_id.split("_")
+        if len(parts) >= 3:
+            user_id = int(parts[1])
+            plan = parts[2]
+            plan_info = PLANS.get(plan)
+            if plan_info:
+                conn = get_db()
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE users SET plan = %s, videos_limit = %s, updated_at = NOW() WHERE id = %s",
+                        (plan, plan_info["limit"], user_id)
+                    )
+                    conn.commit()
+                conn.close()
+    return {"status": "ok"}
 
 # ─── Init ─────────────────────────────────────────────────────────────
 

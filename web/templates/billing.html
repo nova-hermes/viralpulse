@@ -35,9 +35,17 @@
                 </p>
             </div>
 
+            <!-- Success/Cancelled banners -->
+            <div id="success-banner" class="card" style="display:none; border-color: var(--green); background: var(--green-soft);">
+                <p style="color: var(--green); font-weight: 600;">Payment successful! Your plan has been upgraded.</p>
+            </div>
+            <div id="cancelled-banner" class="card" style="display:none; border-color: var(--yellow); background: var(--yellow-soft);">
+                <p style="color: #92400e; font-weight: 500;">Payment cancelled. No charges were made.</p>
+            </div>
+
             <div class="pricing-grid">
                 {% for plan_id, plan in plans.items() %}
-                {% if plan_id != 'lifetime' %}
+                {% if plan_id not in ['lifetime', 'free'] %}
                 <div class="pricing-card {% if user.plan == plan_id %}featured{% endif %}">
                     <h3>{{ plan.name }}</h3>
                     <div class="price">
@@ -51,27 +59,41 @@
                     </ul>
                     {% if user.plan == plan_id %}
                         <button class="btn btn-outline btn-block" disabled>Current Plan</button>
-                    {% elif plan_id == 'free' %}
-                        <form action="/api/billing/upgrade" method="POST">
-                            <input type="hidden" name="plan" value="free">
-                            <button type="submit" class="btn btn-outline btn-block">Downgrade</button>
-                        </form>
                     {% else %}
-                        <form action="/api/billing/upgrade" method="POST">
-                            <input type="hidden" name="plan" value="{{ plan_id }}">
-                            <button type="submit" class="btn {% if plan_id == 'pro' %}btn-purple{% else %}btn-outline{% endif %} btn-block">
-                                Upgrade to {{ plan.name }}
-                            </button>
-                        </form>
+                        <button class="btn {% if plan_id == 'pro' %}btn-purple{% else %}btn-primary{% endif %} btn-block" 
+                                onclick="checkout('{{ plan_id }}')">
+                            Upgrade to {{ plan.name }}
+                        </button>
+                        <button class="btn btn-outline btn-block" style="margin-top: 0.5rem; font-size: 0.8rem;"
+                                onclick="cryptoCheckout('{{ plan_id }}')">
+                            Pay with Crypto
+                        </button>
                     {% endif %}
                 </div>
                 {% endif %}
                 {% endfor %}
-            </div>
 
-            <div class="card" style="margin-top: 1rem;">
-                <h2>Payment Methods</h2>
-                <p style="color: var(--text-muted);">Stripe (credit card) + NOWPayments (crypto: BTC, ETH, USDC, USDT) — coming soon.</p>
+                <!-- Free plan card -->
+                <div class="pricing-card {% if user.plan == 'free' %}featured{% endif %}">
+                    <h3>Free</h3>
+                    <div class="price">
+                        <span class="amount">$0</span>
+                        <span class="period">/month</span>
+                    </div>
+                    <ul>
+                        <li>5 videos/month</li>
+                        <li>Watermarked</li>
+                        <li>720p</li>
+                    </ul>
+                    {% if user.plan == 'free' %}
+                        <button class="btn btn-outline btn-block" disabled>Current Plan</button>
+                    {% else %}
+                        <form action="/api/billing/upgrade" method="POST">
+                            <input type="hidden" name="plan" value="free">
+                            <button type="submit" class="btn btn-outline btn-block">Downgrade to Free</button>
+                        </form>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -83,6 +105,7 @@
     </footer>
 
     <script>
+        // Dark mode
         function toggleTheme() {
             const html = document.documentElement;
             const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -98,6 +121,75 @@
                 if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
             });
         })();
+
+        // Check URL params for success/cancel
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('success') === 'true') {
+            document.getElementById('success-banner').style.display = 'block';
+            window.history.replaceState({}, '', '/billing');
+        }
+        if (params.get('cancelled') === 'true') {
+            document.getElementById('cancelled-banner').style.display = 'block';
+            window.history.replaceState({}, '', '/billing');
+        }
+
+        // Stripe checkout
+        async function checkout(plan) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Redirecting...';
+            
+            const formData = new FormData();
+            formData.append('plan', plan);
+            
+            try {
+                const res = await fetch('/api/billing/checkout', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+                const data = await res.json();
+                if (data.checkout_url) {
+                    window.location.href = data.checkout_url;
+                } else {
+                    alert(data.detail || 'Payment error');
+                    btn.disabled = false;
+                    btn.textContent = 'Upgrade';
+                }
+            } catch (e) {
+                alert('Payment error: ' + e.message);
+                btn.disabled = false;
+            }
+        }
+
+        // Crypto checkout
+        async function cryptoCheckout(plan) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Redirecting...';
+            
+            const formData = new FormData();
+            formData.append('plan', plan);
+            
+            try {
+                const res = await fetch('/api/billing/crypto', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+                const data = await res.json();
+                if (data.checkout_url) {
+                    window.location.href = data.checkout_url;
+                } else {
+                    alert(data.detail || 'Crypto payment error');
+                    btn.disabled = false;
+                    btn.textContent = 'Pay with Crypto';
+                }
+            } catch (e) {
+                alert('Payment error: ' + e.message);
+                btn.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>

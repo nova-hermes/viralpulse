@@ -5,16 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register — ViralPulse</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
-            <a href="/" class="logo">⚡ ViralPulse</a>
+            <a href="/" class="logo">ViralPulse</a>
         </div>
     </nav>
     <div class="auth-container">
         <div class="auth-card">
-            <h2>Create Your Account</h2>
+            <h2>Create your account</h2>
             <form action="/api/register" method="POST">
                 <div class="form-group">
                     <label>Name</label>
@@ -28,7 +30,7 @@
                     <label>Password</label>
                     <input type="password" name="password" required placeholder="Choose a password">
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+                <button type="submit" class="btn btn-primary btn-block">Create account</button>
             </form>
             <div class="divider"><span>or</span></div>
             <a href="/auth/google" class="btn btn-google btn-block">

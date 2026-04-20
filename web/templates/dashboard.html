@@ -5,15 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — ViralPulse</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
-            <a href="/" class="logo">⚡ ViralPulse</a>
+            <a href="/" class="logo">ViralPulse</a>
             <div class="nav-links">
                 <a href="/dashboard" class="active">Dashboard</a>
                 <a href="/billing">Billing</a>
-                <a href="/api/logout" class="btn btn-outline">Logout</a>
+                <a href="/api/logout" class="btn btn-outline btn-sm">Logout</a>
             </div>
         </div>
     </nav>
@@ -39,7 +41,7 @@
                         <input type="text" name="topic" required placeholder="e.g. Sam Altman just fired 200 safety researchers" class="input-lg">
                     </div>
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group" style="flex:1">
                             <label>Niche</label>
                             <select name="niche">
                                 <option value="tech">Tech</option>
@@ -60,10 +62,59 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <button type="submit" class="btn btn-primary btn-lg">⚡ Generate Short</button>
+                            <button type="submit" class="btn btn-primary btn-lg">Generate Short</button>
                         </div>
                     </div>
                 </form>
+            </div>
+
+            <!-- Pipeline Visualization (shown during generation) -->
+            <div class="card" id="pipeline-card" style="display:none">
+                <h2>Generating: <span id="pipeline-topic"></span></h2>
+                <div class="pipeline-viz">
+                    <div class="pipeline-viz-step" id="step-research">
+                        <div class="step-dot">1</div>
+                        <div class="step-info">
+                            <h4>Research</h4>
+                            <p>Gathering real facts and sources...</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-viz-step" id="step-script">
+                        <div class="step-dot">2</div>
+                        <div class="step-info">
+                            <h4>Script Writing</h4>
+                            <p>Crafting hook-driven narrative...</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-viz-step" id="step-visuals">
+                        <div class="step-dot">3</div>
+                        <div class="step-info">
+                            <h4>Visuals</h4>
+                            <p>Generating cinematic b-roll...</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-viz-step" id="step-voice">
+                        <div class="step-dot">4</div>
+                        <div class="step-info">
+                            <h4>Voiceover</h4>
+                            <p>Synthesizing natural voice...</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-viz-step" id="step-captions">
+                        <div class="step-dot">5</div>
+                        <div class="step-info">
+                            <h4>Captions</h4>
+                            <p>Adding animated word highlights...</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-viz-step" id="step-compose">
+                        <div class="step-dot">6</div>
+                        <div class="step-info">
+                            <h4>Compose</h4>
+                            <p>Assembling final video...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Recent Videos -->
@@ -95,10 +146,86 @@
                     </tbody>
                 </table>
                 {% else %}
-                <p class="empty-state">No videos yet. Generate your first Short above!</p>
+                <p class="empty-state">No videos yet. Enter a topic above and hit Generate.</p>
                 {% endif %}
             </div>
         </div>
     </div>
+
+    <script>
+        // Pipeline visualization on form submit
+        const form = document.getElementById('generate-form');
+        const pipelineCard = document.getElementById('pipeline-card');
+        const pipelineTopic = document.getElementById('pipeline-topic');
+        const steps = ['research', 'script', 'visuals', 'voice', 'captions', 'compose'];
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const topic = form.querySelector('input[name="topic"]').value;
+            const niche = form.querySelector('select[name="niche"]').value;
+
+            // Show pipeline
+            pipelineTopic.textContent = topic;
+            pipelineCard.style.display = 'block';
+            pipelineCard.scrollIntoView({ behavior: 'smooth' });
+
+            // Reset all steps
+            steps.forEach(s => {
+                document.getElementById('step-' + s).className = 'pipeline-viz-step';
+            });
+
+            // Animate steps sequentially
+            let delay = 800;
+            steps.forEach((step, i) => {
+                setTimeout(() => {
+                    // Mark previous as done
+                    if (i > 0) {
+                        document.getElementById('step-' + steps[i-1]).className = 'pipeline-viz-step done';
+                    }
+                    // Mark current as active
+                    document.getElementById('step-' + step).className = 'pipeline-viz-step active';
+                }, delay * (i + 1));
+            });
+
+            // Actually submit the form via fetch
+            const formData = new FormData(form);
+            fetch('/api/generate', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data) return;
+                if (data.status === 'queued' || data.video_id) {
+                    // Mark last step as done
+                    setTimeout(() => {
+                        document.getElementById('step-compose').className = 'pipeline-viz-step done';
+                        // Reload to show new video in list
+                        setTimeout(() => window.location.reload(), 1000);
+                    }, 500);
+                } else {
+                    // Error
+                    document.getElementById('step-' + steps.find(s => 
+                        document.getElementById('step-' + s).classList.contains('active')
+                    )).className = 'pipeline-viz-step error';
+                }
+            })
+            .catch(() => {
+                steps.forEach(s => {
+                    const el = document.getElementById('step-' + s);
+                    if (el.classList.contains('active')) {
+                        el.className = 'pipeline-viz-step error';
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

@@ -5,19 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ViralPulse — AI YouTube Shorts Engine</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
-            <a href="/" class="logo">⚡ ViralPulse</a>
+            <a href="/" class="logo">ViralPulse</a>
             <div class="nav-links">
                 {% if user %}
                     <a href="/dashboard">Dashboard</a>
                     <a href="/billing">Billing</a>
-                    <a href="/api/logout" class="btn btn-outline">Logout</a>
+                    <a href="/api/logout" class="btn btn-outline btn-sm">Logout</a>
                 {% else %}
-                    <a href="/login" class="btn btn-outline">Login</a>
-                    <a href="/register" class="btn btn-primary">Get Started</a>
+                    <a href="/login">Login</a>
+                    <a href="/register" class="btn btn-primary btn-sm">Get Started</a>
                 {% endif %}
             </div>
         </div>
@@ -25,8 +27,9 @@
 
     <section class="hero">
         <div class="container">
-            <h1>Topic In.<br><span class="gradient">Published Short Out.</span></h1>
-            <p class="subtitle">AI-powered YouTube Shorts engine. Any niche. ~$0.11 per video. 3 minutes from idea to upload.</p>
+            <span class="tag">AI-Powered Video Creation</span>
+            <h1>Topic In.<br><span>Short Out.</span></h1>
+            <p class="subtitle">Feed it a headline. Get a publish-ready YouTube Short in 3 minutes. Research, script, visuals, voice, captions — all automatic.</p>
             <div class="hero-actions">
                 <a href="/register" class="btn btn-primary btn-lg">Start Creating Free</a>
                 <a href="#how-it-works" class="btn btn-outline btn-lg">See How It Works</a>
@@ -50,50 +53,93 @@
 
     <section id="how-it-works" class="section">
         <div class="container">
-            <h2>How It Works</h2>
+            <div class="section-header">
+                <h2>How It Works</h2>
+                <p>Six steps, fully automated. You just pick the topic.</p>
+            </div>
             <div class="pipeline">
-                <div class="step">
+                <div class="pipeline-step">
+                    <span class="step-num">1</span>
                     <div class="step-icon">🔍</div>
-                    <h3>Research</h3>
-                    <p>Real facts from DuckDuckGo. No hallucinations.</p>
+                    <h4>Research</h4>
+                    <p>Real facts from live sources. No hallucinations.</p>
                 </div>
-                <div class="arrow">→</div>
-                <div class="step">
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step">
+                    <span class="step-num">2</span>
                     <div class="step-icon">✍️</div>
-                    <h3>Script</h3>
-                    <p>Hook-driven 60-90s script tuned to your niche.</p>
+                    <h4>Script</h4>
+                    <p>Hook-driven 60–90s script tuned to your niche.</p>
                 </div>
-                <div class="arrow">→</div>
-                <div class="step">
-                    <div class="step-icon">🎬</div>
-                    <h3>Visuals</h3>
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step">
+                    <span class="step-num">3</span>
+                    <div class="step-icon">🎨</div>
+                    <h4>Visuals</h4>
                     <p>AI-generated cinematic b-roll in 9:16.</p>
                 </div>
-                <div class="arrow">→</div>
-                <div class="step">
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step">
+                    <span class="step-num">4</span>
                     <div class="step-icon">🎙️</div>
-                    <h3>Voice</h3>
-                    <p>Natural TTS voiceover with niche-matched tone.</p>
+                    <h4>Voice</h4>
+                    <p>Natural TTS voiceover, tone matched to niche.</p>
                 </div>
-                <div class="arrow">→</div>
-                <div class="step">
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step">
+                    <span class="step-num">5</span>
                     <div class="step-icon">📝</div>
-                    <h3>Captions</h3>
-                    <p>Animated word-by-word highlights via Whisper.</p>
+                    <h4>Captions</h4>
+                    <p>Animated word-by-word highlights.</p>
                 </div>
-                <div class="arrow">→</div>
-                <div class="step">
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step">
+                    <span class="step-num">6</span>
                     <div class="step-icon">📤</div>
-                    <h3>Upload</h3>
-                    <p>Published to YouTube with title, tags, thumbnail.</p>
+                    <h4>Publish</h4>
+                    <p>Title, tags, thumbnail — ready to upload.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="section section-dark">
+    <section class="section" style="background: var(--bg-card);">
         <div class="container">
-            <h2>15+ Niches Built In</h2>
+            <div class="section-header">
+                <h2>Built for Creators</h2>
+                <p>Everything you need to run a faceless YouTube channel.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Niche-Aware</h3>
+                    <p>Each niche shapes script tone, visual style, captions, and music. Tech sounds different from True Crime.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>Insanely Cheap</h3>
+                    <p>~$0.11 per video using open-source AI. No expensive API subscriptions. Start free, scale when ready.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>3 Minutes Flat</h3>
+                    <p>From topic to publish-ready Short in about 3 minutes. No editing skills needed.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Batch Mode</h3>
+                    <p>Queue up 10 topics, get 10 videos. Perfect for consistent posting schedules.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2>15+ Niches</h2>
+                <p>Each one with custom tone, visuals, and style.</p>
+            </div>
             <div class="niches">
                 <span class="niche-tag">Tech</span>
                 <span class="niche-tag">Finance</span>
@@ -111,13 +157,15 @@
                 <span class="niche-tag">Politics</span>
                 <span class="niche-tag">Entertainment</span>
             </div>
-            <p class="center">Each niche shapes script tone, visual style, captions, and music.</p>
         </div>
     </section>
 
     <section class="section">
         <div class="container">
-            <h2>Pricing</h2>
+            <div class="section-header">
+                <h2>Simple Pricing</h2>
+                <p>Start free. Upgrade when you're ready to scale.</p>
+            </div>
             <div class="pricing-grid">
                 {% for plan_id, plan in plans.items() %}
                 {% if plan_id != 'lifetime' %}
@@ -129,10 +177,10 @@
                     </div>
                     <ul>
                         {% for feature in plan.features %}
-                        <li>✓ {{ feature }}</li>
+                        <li>{{ feature }}</li>
                         {% endfor %}
                     </ul>
-                    <a href="/register" class="btn {% if plan_id == 'pro' %}btn-primary{% else %}btn-outline{% endif %} btn-block">
+                    <a href="/register" class="btn {% if plan_id == 'pro' %}btn-purple{% else %}btn-outline{% endif %} btn-block">
                         Get Started
                     </a>
                 </div>
@@ -144,7 +192,7 @@
 
     <footer class="footer">
         <div class="container">
-            <p>© 2026 ViralPulse. Built on open source. <a href="https://github.com/nova-hermes/viralpulse">GitHub</a></p>
+            <p>ViralPulse — Built on open source. <a href="https://github.com/nova-hermes/viralpulse">GitHub</a></p>
         </div>
     </footer>
 </body>

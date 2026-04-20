@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing — ViralPulse</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="logo">⚡ ViralPulse</a>
+            <div class="nav-links">
+                <a href="/dashboard">Dashboard</a>
+                <a href="/billing" class="active">Billing</a>
+                <a href="/api/logout" class="btn btn-outline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard">
+        <div class="container">
+            <h1>Billing & Plans</h1>
+            
+            <div class="current-plan card">
+                <h3>Current Plan: <strong>{{ plans[user.plan].name }}</strong></h3>
+                <p>{{ user.videos_generated }}/{{ user.videos_limit }} videos used this month</p>
+            </div>
+
+            <div class="pricing-grid">
+                {% for plan_id, plan in plans.items() %}
+                {% if plan_id != 'lifetime' %}
+                <div class="pricing-card {% if user.plan == plan_id %}current{% endif %} {% if plan_id == 'pro' %}featured{% endif %}">
+                    <h3>{{ plan.name }}</h3>
+                    <div class="price">
+                        <span class="amount">${{ plan.price }}</span>
+                        <span class="period">/month</span>
+                    </div>
+                    <ul>
+                        {% for feature in plan.features %}
+                        <li>✓ {{ feature }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% if user.plan == plan_id %}
+                        <button class="btn btn-outline btn-block" disabled>Current Plan</button>
+                    {% elif plan_id == 'free' %}
+                        <form action="/api/billing/upgrade" method="POST">
+                            <input type="hidden" name="plan" value="free">
+                            <button type="submit" class="btn btn-outline btn-block">Downgrade</button>
+                        </form>
+                    {% else %}
+                        <form action="/api/billing/upgrade" method="POST">
+                            <input type="hidden" name="plan" value="{{ plan_id }}">
+                            <button type="submit" class="btn {% if plan_id == 'pro' %}btn-primary{% else %}btn-outline{% endif %} btn-block">
+                                Upgrade to {{ plan.name }}
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="card" style="margin-top: 2rem;">
+                <h3>Payment Methods</h3>
+                <p>Coming soon: Stripe (credit card) + NOWPayments (crypto: BTC/ETH/USDC/USDT)</p>
+                <p class="text-muted">For now, plan upgrades are instant. Payment integration in progress.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

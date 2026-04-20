@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViralPulse — AI YouTube Shorts Engine</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="logo">⚡ ViralPulse</a>
+            <div class="nav-links">
+                {% if user %}
+                    <a href="/dashboard">Dashboard</a>
+                    <a href="/billing">Billing</a>
+                    <a href="/api/logout" class="btn btn-outline">Logout</a>
+                {% else %}
+                    <a href="/login" class="btn btn-outline">Login</a>
+                    <a href="/register" class="btn btn-primary">Get Started</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Topic In.<br><span class="gradient">Published Short Out.</span></h1>
+            <p class="subtitle">AI-powered YouTube Shorts engine. Any niche. ~$0.11 per video. 3 minutes from idea to upload.</p>
+            <div class="hero-actions">
+                <a href="/register" class="btn btn-primary btn-lg">Start Creating Free</a>
+                <a href="#how-it-works" class="btn btn-outline btn-lg">See How It Works</a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-value">~$0.11</span>
+                    <span class="stat-label">Per Video</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">~3 min</span>
+                    <span class="stat-label">To Publish</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">15+</span>
+                    <span class="stat-label">Niches</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="how-it-works" class="section">
+        <div class="container">
+            <h2>How It Works</h2>
+            <div class="pipeline">
+                <div class="step">
+                    <div class="step-icon">🔍</div>
+                    <h3>Research</h3>
+                    <p>Real facts from DuckDuckGo. No hallucinations.</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="step">
+                    <div class="step-icon">✍️</div>
+                    <h3>Script</h3>
+                    <p>Hook-driven 60-90s script tuned to your niche.</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="step">
+                    <div class="step-icon">🎬</div>
+                    <h3>Visuals</h3>
+                    <p>AI-generated cinematic b-roll in 9:16.</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="step">
+                    <div class="step-icon">🎙️</div>
+                    <h3>Voice</h3>
+                    <p>Natural TTS voiceover with niche-matched tone.</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="step">
+                    <div class="step-icon">📝</div>
+                    <h3>Captions</h3>
+                    <p>Animated word-by-word highlights via Whisper.</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="step">
+                    <div class="step-icon">📤</div>
+                    <h3>Upload</h3>
+                    <p>Published to YouTube with title, tags, thumbnail.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-dark">
+        <div class="container">
+            <h2>15+ Niches Built In</h2>
+            <div class="niches">
+                <span class="niche-tag">Tech</span>
+                <span class="niche-tag">Finance</span>
+                <span class="niche-tag">Fitness</span>
+                <span class="niche-tag">Cooking</span>
+                <span class="niche-tag">True Crime</span>
+                <span class="niche-tag">Gaming</span>
+                <span class="niche-tag">Science</span>
+                <span class="niche-tag">Motivation</span>
+                <span class="niche-tag">Fashion</span>
+                <span class="niche-tag">Travel</span>
+                <span class="niche-tag">Sports</span>
+                <span class="niche-tag">Education</span>
+                <span class="niche-tag">Comedy</span>
+                <span class="niche-tag">Politics</span>
+                <span class="niche-tag">Entertainment</span>
+            </div>
+            <p class="center">Each niche shapes script tone, visual style, captions, and music.</p>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <h2>Pricing</h2>
+            <div class="pricing-grid">
+                {% for plan_id, plan in plans.items() %}
+                {% if plan_id != 'lifetime' %}
+                <div class="pricing-card {% if plan_id == 'pro' %}featured{% endif %}">
+                    <h3>{{ plan.name }}</h3>
+                    <div class="price">
+                        <span class="amount">${{ plan.price }}</span>
+                        <span class="period">/month</span>
+                    </div>
+                    <ul>
+                        {% for feature in plan.features %}
+                        <li>✓ {{ feature }}</li>
+                        {% endfor %}
+                    </ul>
+                    <a href="/register" class="btn {% if plan_id == 'pro' %}btn-primary{% else %}btn-outline{% endif %} btn-block">
+                        Get Started
+                    </a>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <p>© 2026 ViralPulse. Built on open source. <a href="https://github.com/nova-hermes/viralpulse">GitHub</a></p>
+        </div>
+    </footer>
+</body>
+</html>

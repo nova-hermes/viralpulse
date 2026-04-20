@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — ViralPulse</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="logo">⚡ ViralPulse</a>
+            <div class="nav-links">
+                <a href="/dashboard" class="active">Dashboard</a>
+                <a href="/billing">Billing</a>
+                <a href="/api/logout" class="btn btn-outline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard">
+        <div class="container">
+            <div class="dashboard-header">
+                <h1>Dashboard</h1>
+                <div class="usage-badge">
+                    <span>{{ user.videos_generated }}/{{ user.videos_limit }}</span> videos used
+                    {% if user.is_owner %}
+                    <span class="badge badge-gold">Owner</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Generate New Video -->
+            <div class="card">
+                <h2>Generate New Short</h2>
+                <form action="/api/generate" method="POST" id="generate-form">
+                    <div class="form-group">
+                        <label>Topic / News Headline</label>
+                        <input type="text" name="topic" required placeholder="e.g. Sam Altman just fired 200 safety researchers" class="input-lg">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Niche</label>
+                            <select name="niche">
+                                <option value="tech">Tech</option>
+                                <option value="finance">Finance</option>
+                                <option value="fitness">Fitness</option>
+                                <option value="cooking">Cooking</option>
+                                <option value="true_crime">True Crime</option>
+                                <option value="gaming">Gaming</option>
+                                <option value="science">Science</option>
+                                <option value="motivation">Motivation</option>
+                                <option value="fashion">Fashion</option>
+                                <option value="travel">Travel</option>
+                                <option value="sports">Sports</option>
+                                <option value="education">Education</option>
+                                <option value="comedy">Comedy</option>
+                                <option value="politics">Politics</option>
+                                <option value="entertainment">Entertainment</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary btn-lg">⚡ Generate Short</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Recent Videos -->
+            <div class="card">
+                <h2>Your Videos</h2>
+                {% if videos %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Topic</th>
+                            <th>Niche</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for video in videos %}
+                        <tr>
+                            <td>{{ video.topic[:60] }}{% if video.topic|length > 60 %}...{% endif %}</td>
+                            <td><span class="badge">{{ video.niche }}</span></td>
+                            <td>
+                                <span class="status status-{{ video.status }}">
+                                    {{ video.status }}
+                                </span>
+                            </td>
+                            <td>{{ video.created_at[:10] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="empty-state">No videos yet. Generate your first Short above!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

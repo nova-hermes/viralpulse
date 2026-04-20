@@ -129,6 +129,12 @@ app = FastAPI(title="ViralPulse", version="1.0.0")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "web" / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "web" / "templates"))
 
+# ─── Routes: Health ────────────────────────────────────────────────────
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "ViralPulse"}
+
 # ─── Routes: Pages ────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)

@@ -25,5 +25,5 @@ RUN mkdir -p data/drafts data/media
 # Expose port
 EXPOSE 8080
 
-# Run the web server
-CMD ["uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "8080"]
+# Run the web server (use Railway's PORT env var if available)
+CMD uvicorn web.app:app --host 0.0.0.0 --port ${PORT:-8080}

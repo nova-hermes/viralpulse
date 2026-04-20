@@ -145,6 +145,14 @@ app = FastAPI(title="ViralPulse", version="1.0.0")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "web" / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "web" / "templates"))
 
+# Add custom Jinja2 filters
+def format_date(value, fmt="%Y-%m-%d"):
+    if hasattr(value, "strftime"):
+        return value.strftime(fmt)
+    return str(value)[:10] if value else ""
+
+templates.env.filters["date"] = format_date
+
 # ─── Routes: Health ────────────────────────────────────────────────────
 
 @app.get("/health")

@@ -6,7 +6,7 @@
     <title>Dashboard — ViralPulse</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar">
@@ -16,6 +16,7 @@
                 <a href="/dashboard" class="active">Dashboard</a>
                 <a href="/billing">Billing</a>
                 <a href="/api/logout" class="btn btn-outline btn-sm">Logout</a>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
             </div>
         </div>
     </nav>
@@ -62,15 +63,15 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <button type="submit" class="btn btn-primary btn-lg">Generate Short</button>
+                            <button type="submit" class="btn btn-primary btn-lg">Generate Short →</button>
                         </div>
                     </div>
                 </form>
             </div>
 
-            <!-- Pipeline Visualization (shown during generation) -->
+            <!-- Pipeline Visualization -->
             <div class="card" id="pipeline-card" style="display:none">
-                <h2>Generating: <span id="pipeline-topic"></span></h2>
+                <h2>Generating: <span id="pipeline-topic" style="color:var(--purple)"></span></h2>
                 <div class="pipeline-viz">
                     <div class="pipeline-viz-step" id="step-research">
                         <div class="step-dot">1</div>
@@ -140,7 +141,7 @@
                                     {{ video.status }}
                                 </span>
                             </td>
-                            <td>{{ video.created_at[:10] }}</td>
+                            <td>{{ video.created_at | date }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -152,8 +153,32 @@
         </div>
     </div>
 
+    <footer class="footer">
+        <div class="container">
+            <p>ViralPulse — Built on open source. <a href="https://github.com/nova-hermes/viralpulse">GitHub</a></p>
+        </div>
+    </footer>
+
     <script>
-        // Pipeline visualization on form submit
+        // Dark mode
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.querySelector('.theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+        }
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+            document.addEventListener('DOMContentLoaded', () => {
+                const btn = document.querySelector('.theme-toggle');
+                if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+            });
+        })();
+
+        // Pipeline visualization
         const form = document.getElementById('generate-form');
         const pipelineCard = document.getElementById('pipeline-card');
         const pipelineTopic = document.getElementById('pipeline-topic');
@@ -162,32 +187,25 @@
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const topic = form.querySelector('input[name="topic"]').value;
-            const niche = form.querySelector('select[name="niche"]').value;
 
-            // Show pipeline
             pipelineTopic.textContent = topic;
             pipelineCard.style.display = 'block';
             pipelineCard.scrollIntoView({ behavior: 'smooth' });
 
-            // Reset all steps
             steps.forEach(s => {
                 document.getElementById('step-' + s).className = 'pipeline-viz-step';
             });
 
-            // Animate steps sequentially
             let delay = 800;
             steps.forEach((step, i) => {
                 setTimeout(() => {
-                    // Mark previous as done
                     if (i > 0) {
                         document.getElementById('step-' + steps[i-1]).className = 'pipeline-viz-step done';
                     }
-                    // Mark current as active
                     document.getElementById('step-' + step).className = 'pipeline-viz-step active';
                 }, delay * (i + 1));
             });
 
-            // Actually submit the form via fetch
             const formData = new FormData(form);
             fetch('/api/generate', {
                 method: 'POST',
@@ -195,34 +213,25 @@
                 credentials: 'same-origin'
             })
             .then(res => {
-                if (res.status === 401) {
-                    window.location.href = '/login';
-                    return;
-                }
+                if (res.status === 401) { window.location.href = '/login'; return; }
                 return res.json();
             })
             .then(data => {
                 if (!data) return;
                 if (data.status === 'queued' || data.video_id) {
-                    // Mark last step as done
                     setTimeout(() => {
                         document.getElementById('step-compose').className = 'pipeline-viz-step done';
-                        // Reload to show new video in list
-                        setTimeout(() => window.location.reload(), 1000);
+                        setTimeout(() => window.location.reload(), 1200);
                     }, 500);
                 } else {
-                    // Error
-                    document.getElementById('step-' + steps.find(s => 
-                        document.getElementById('step-' + s).classList.contains('active')
-                    )).className = 'pipeline-viz-step error';
+                    const activeStep = steps.find(s => document.getElementById('step-' + s).classList.contains('active'));
+                    if (activeStep) document.getElementById('step-' + activeStep).className = 'pipeline-viz-step error';
                 }
             })
             .catch(() => {
                 steps.forEach(s => {
                     const el = document.getElementById('step-' + s);
-                    if (el.classList.contains('active')) {
-                        el.className = 'pipeline-viz-step error';
-                    }
+                    if (el.classList.contains('active')) el.className = 'pipeline-viz-step error';
                 });
             });
         });

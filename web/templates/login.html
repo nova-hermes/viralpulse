@@ -6,12 +6,15 @@
     <title>Login — ViralPulse</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
             <a href="/" class="logo">ViralPulse</a>
+            <div class="nav-links">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+            </div>
         </div>
     </nav>
     <div class="auth-container">
@@ -36,5 +39,22 @@
             <p class="auth-link">Don't have an account? <a href="/register">Create one</a></p>
         </div>
     </div>
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.querySelector('.theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+        }
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+            document.addEventListener('DOMContentLoaded', () => {
+                const btn = document.querySelector('.theme-toggle');
+                if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+            });
+        })();
+    </script>
 </body>
 </html>

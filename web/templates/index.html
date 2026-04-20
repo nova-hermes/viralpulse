@@ -6,7 +6,7 @@
     <title>ViralPulse — AI YouTube Shorts Engine</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar">
@@ -21,17 +21,18 @@
                     <a href="/login">Login</a>
                     <a href="/register" class="btn btn-primary btn-sm">Get Started</a>
                 {% endif %}
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
             </div>
         </div>
     </nav>
 
     <section class="hero">
         <div class="container">
-            <span class="tag">AI-Powered Video Creation</span>
+            <span class="tag">✦ AI-Powered Video Creation</span>
             <h1>Topic In.<br><span>Short Out.</span></h1>
             <p class="subtitle">Feed it a headline. Get a publish-ready YouTube Short in 3 minutes. Research, script, visuals, voice, captions — all automatic.</p>
             <div class="hero-actions">
-                <a href="/register" class="btn btn-primary btn-lg">Start Creating Free</a>
+                <a href="/register" class="btn btn-primary btn-lg">Start Creating Free →</a>
                 <a href="#how-it-works" class="btn btn-outline btn-lg">See How It Works</a>
             </div>
             <div class="hero-stats">
@@ -62,48 +63,48 @@
                     <span class="step-num">1</span>
                     <div class="step-icon">🔍</div>
                     <h4>Research</h4>
-                    <p>Real facts from live sources. No hallucinations.</p>
+                    <p>Real facts from live sources.</p>
                 </div>
                 <div class="pipeline-arrow">→</div>
                 <div class="pipeline-step">
                     <span class="step-num">2</span>
                     <div class="step-icon">✍️</div>
                     <h4>Script</h4>
-                    <p>Hook-driven 60–90s script tuned to your niche.</p>
+                    <p>Hook-driven 60–90s narrative.</p>
                 </div>
                 <div class="pipeline-arrow">→</div>
                 <div class="pipeline-step">
                     <span class="step-num">3</span>
                     <div class="step-icon">🎨</div>
                     <h4>Visuals</h4>
-                    <p>AI-generated cinematic b-roll in 9:16.</p>
+                    <p>AI cinematic b-roll in 9:16.</p>
                 </div>
                 <div class="pipeline-arrow">→</div>
                 <div class="pipeline-step">
                     <span class="step-num">4</span>
                     <div class="step-icon">🎙️</div>
                     <h4>Voice</h4>
-                    <p>Natural TTS voiceover, tone matched to niche.</p>
+                    <p>Natural TTS voiceover.</p>
                 </div>
                 <div class="pipeline-arrow">→</div>
                 <div class="pipeline-step">
                     <span class="step-num">5</span>
                     <div class="step-icon">📝</div>
                     <h4>Captions</h4>
-                    <p>Animated word-by-word highlights.</p>
+                    <p>Animated word highlights.</p>
                 </div>
                 <div class="pipeline-arrow">→</div>
                 <div class="pipeline-step">
                     <span class="step-num">6</span>
                     <div class="step-icon">📤</div>
                     <h4>Publish</h4>
-                    <p>Title, tags, thumbnail — ready to upload.</p>
+                    <p>Title, tags, thumbnail ready.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="section" style="background: var(--bg-card);">
+    <section class="section section-alt">
         <div class="container">
             <div class="section-header">
                 <h2>Built for Creators</h2>
@@ -111,22 +112,22 @@
             </div>
             <div class="features-grid">
                 <div class="feature-card">
-                    <div class="feature-icon">🎯</div>
+                    <span class="feature-icon">🎯</span>
                     <h3>Niche-Aware</h3>
                     <p>Each niche shapes script tone, visual style, captions, and music. Tech sounds different from True Crime.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">💰</div>
+                    <span class="feature-icon">💰</span>
                     <h3>Insanely Cheap</h3>
                     <p>~$0.11 per video using open-source AI. No expensive API subscriptions. Start free, scale when ready.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
+                    <span class="feature-icon">⚡</span>
                     <h3>3 Minutes Flat</h3>
                     <p>From topic to publish-ready Short in about 3 minutes. No editing skills needed.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🔄</div>
+                    <span class="feature-icon">🔄</span>
                     <h3>Batch Mode</h3>
                     <p>Queue up 10 topics, get 10 videos. Perfect for consistent posting schedules.</p>
                 </div>
@@ -160,7 +161,7 @@
         </div>
     </section>
 
-    <section class="section">
+    <section class="section section-alt">
         <div class="container">
             <div class="section-header">
                 <h2>Simple Pricing</h2>
@@ -195,5 +196,24 @@
             <p>ViralPulse — Built on open source. <a href="https://github.com/nova-hermes/viralpulse">GitHub</a></p>
         </div>
     </footer>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.querySelector('.theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+        }
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+            document.addEventListener('DOMContentLoaded', () => {
+                const btn = document.querySelector('.theme-toggle');
+                if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+            });
+        })();
+    </script>
 </body>
 </html>

@@ -6,7 +6,7 @@
     <title>Billing — ViralPulse</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar">
@@ -16,6 +16,7 @@
                 <a href="/dashboard">Dashboard</a>
                 <a href="/billing" class="active">Billing</a>
                 <a href="/api/logout" class="btn btn-outline btn-sm">Logout</a>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
             </div>
         </div>
     </nav>
@@ -28,7 +29,7 @@
 
             <div class="card">
                 <h2>Current Plan</h2>
-                <p style="color: var(--text-muted); margin-bottom: 0.5rem;">
+                <p style="color: var(--text-muted);">
                     <strong style="color: var(--text);">{{ plans[user.plan].name }}</strong> — 
                     {{ user.videos_generated }}/{{ user.videos_limit }} videos used
                 </p>
@@ -49,7 +50,7 @@
                         {% endfor %}
                     </ul>
                     {% if user.plan == plan_id %}
-                        <button class="btn btn-outline btn-block" disabled style="opacity:0.5">Current Plan</button>
+                        <button class="btn btn-outline btn-block" disabled>Current Plan</button>
                     {% elif plan_id == 'free' %}
                         <form action="/api/billing/upgrade" method="POST">
                             <input type="hidden" name="plan" value="free">
@@ -68,11 +69,35 @@
                 {% endfor %}
             </div>
 
-            <div class="card" style="margin-top: 1.5rem;">
+            <div class="card" style="margin-top: 1rem;">
                 <h2>Payment Methods</h2>
                 <p style="color: var(--text-muted);">Stripe (credit card) + NOWPayments (crypto: BTC, ETH, USDC, USDT) — coming soon.</p>
             </div>
         </div>
     </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>ViralPulse — Built on open source. <a href="https://github.com/nova-hermes/viralpulse">GitHub</a></p>
+        </div>
+    </footer>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.querySelector('.theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+        }
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+            document.addEventListener('DOMContentLoaded', () => {
+                const btn = document.querySelector('.theme-toggle');
+                if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+            });
+        })();
+    </script>
 </body>
 </html>

@@ -3,12 +3,14 @@
 import os
 import json
 import time
-import sqlite3
 import hashlib
 import secrets
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from fastapi import FastAPI, Request, Depends, HTTPException, Form, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -18,12 +20,11 @@ from fastapi.templating import Jinja2Templates
 # ─── Config ───────────────────────────────────────────────────────────
 
 BASE_DIR = Path(__file__).parent.parent
-DB_PATH = BASE_DIR / "data" / "viralpulse.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 DRAFTS_DIR = BASE_DIR / "data" / "drafts"
 MEDIA_DIR = BASE_DIR / "data" / "media"
 
 # Ensure dirs exist
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -31,51 +32,54 @@ MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
 def get_db():
     """Get database connection."""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL)
+    return conn
+
+def get_db_dict():
+    """Get database connection with dict cursor."""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
 def init_db():
     """Initialize database tables."""
     conn = get_db()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            name TEXT DEFAULT '',
-            plan TEXT DEFAULT 'free',
-            videos_generated INTEGER DEFAULT 0,
-            videos_limit INTEGER DEFAULT 5,
-            is_owner INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT DEFAULT '',
+                plan TEXT DEFAULT 'free',
+                videos_generated INTEGER DEFAULT 0,
+                videos_limit INTEGER DEFAULT 5,
+                is_owner BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
 
-        CREATE TABLE IF NOT EXISTS videos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            topic TEXT NOT NULL,
-            niche TEXT DEFAULT 'general',
-            status TEXT DEFAULT 'pending',
-            script TEXT,
-            video_path TEXT,
-            thumbnail_path TEXT,
-            youtube_url TEXT,
-            cost REAL DEFAULT 0.0,
-            created_at TEXT DEFAULT (datetime('now')),
-            completed_at TEXT,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
+            CREATE TABLE IF NOT EXISTS videos (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                topic TEXT NOT NULL,
+                niche TEXT DEFAULT 'general',
+                status TEXT DEFAULT 'pending',
+                script TEXT,
+                video_path TEXT,
+                thumbnail_path TEXT,
+                youtube_url TEXT,
+                cost REAL DEFAULT 0.0,
+                created_at TIMESTAMP DEFAULT NOW(),
+                completed_at TIMESTAMP
+            );
 
-        CREATE TABLE IF NOT EXISTS sessions (
-            token TEXT PRIMARY KEY,
-            user_id INTEGER NOT NULL,
-            expires_at TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-    """)
-    conn.commit()
+            CREATE TABLE IF NOT EXISTS sessions (
+                token TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                expires_at TIMESTAMP NOT NULL
+            );
+        """)
+        conn.commit()
     conn.close()
 
 # ─── Auth helpers ─────────────────────────────────────────────────────
@@ -87,21 +91,24 @@ def create_session(user_id: int) -> str:
     token = secrets.token_hex(32)
     expires = (datetime.utcnow() + timedelta(days=30)).isoformat()
     conn = get_db()
-    conn.execute("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
-                 (token, user_id, expires))
-    conn.commit()
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO sessions (token, user_id, expires_at) VALUES (%s, %s, %s)",
+                     (token, user_id, expires))
+        conn.commit()
     conn.close()
     return token
 
 def get_current_user(session_token: Optional[str] = Cookie(None)) -> Optional[dict]:
     if not session_token:
         return None
-    conn = get_db()
-    row = conn.execute("""
-        SELECT u.* FROM users u
-        JOIN sessions s ON s.user_id = u.id
-        WHERE s.token = ? AND s.expires_at > datetime('now')
-    """, (session_token,)).fetchone()
+    conn = get_db_dict()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT u.* FROM users u
+            JOIN sessions s ON s.user_id = u.id
+            WHERE s.token = %s AND s.expires_at > NOW()
+        """, (session_token,))
+        row = cur.fetchone()
     conn.close()
     return dict(row) if row else None
 
@@ -156,11 +163,13 @@ async def dashboard(request: Request):
     if not user:
         return RedirectResponse("/login", status_code=302)
     
-    conn = get_db()
-    videos = conn.execute(
-        "SELECT * FROM videos WHERE user_id = ? ORDER BY created_at DESC LIMIT 20",
-        (user["id"],)
-    ).fetchall()
+    conn = get_db_dict()
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM videos WHERE user_id = %s ORDER BY created_at DESC LIMIT 20",
+            (user["id"],)
+        )
+        videos = cur.fetchall()
     conn.close()
     
     return templates.TemplateResponse("dashboard.html", {
@@ -181,17 +190,19 @@ async def billing_page(request: Request):
 @app.post("/api/register")
 async def register(email: str = Form(...), password: str = Form(...), name: str = Form("")):
     conn = get_db()
-    existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
-    if existing:
-        conn.close()
-        raise HTTPException(400, "Email already registered")
-    
-    cursor = conn.execute(
-        "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
-        (email, hash_password(password), name)
-    )
-    user_id = cursor.lastrowid
-    conn.commit()
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+        existing = cur.fetchone()
+        if existing:
+            conn.close()
+            raise HTTPException(400, "Email already registered")
+        
+        cur.execute(
+            "INSERT INTO users (email, password_hash, name) VALUES (%s, %s, %s) RETURNING id",
+            (email, hash_password(password), name)
+        )
+        user_id = cur.fetchone()[0]
+        conn.commit()
     conn.close()
     
     token = create_session(user_id)
@@ -201,10 +212,10 @@ async def register(email: str = Form(...), password: str = Form(...), name: str 
 
 @app.post("/api/login")
 async def login(email: str = Form(...), password: str = Form(...)):
-    conn = get_db()
-    user = conn.execute(
-        "SELECT id, password_hash FROM users WHERE email = ?", (email,)
-    ).fetchone()
+    conn = get_db_dict()
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, password_hash FROM users WHERE email = %s", (email,))
+        user = cur.fetchone()
     conn.close()
     
     if not user or user["password_hash"] != hash_password(password):
@@ -229,40 +240,40 @@ async def generate_video(
     niche: str = Form("general"),
     user: dict = Depends(require_user)
 ):
-    conn = get_db()
+    conn = get_db_dict()
     
     # Check limits
     if user["videos_generated"] >= user["videos_limit"] and user["plan"] != "lifetime":
         conn.close()
         raise HTTPException(402, "Video limit reached. Please upgrade your plan.")
     
-    # Create video record
-    cursor = conn.execute(
-        "INSERT INTO videos (user_id, topic, niche, status) VALUES (?, ?, ?, 'queued')",
-        (user["id"], topic, niche)
-    )
-    video_id = cursor.lastrowid
-    
-    # Increment usage
-    conn.execute(
-        "UPDATE users SET videos_generated = videos_generated + 1, updated_at = datetime('now') WHERE id = ?",
-        (user["id"],)
-    )
-    conn.commit()
+    with conn.cursor() as cur:
+        # Create video record
+        cur.execute(
+            "INSERT INTO videos (user_id, topic, niche, status) VALUES (%s, %s, %s, 'queued') RETURNING id",
+            (user["id"], topic, niche)
+        )
+        video_id = cur.fetchone()[0]
+        
+        # Increment usage
+        cur.execute(
+            "UPDATE users SET videos_generated = videos_generated + 1, updated_at = NOW() WHERE id = %s",
+            (user["id"],)
+        )
+        conn.commit()
     conn.close()
-    
-    # TODO: Queue video generation (for now, mark as pending)
-    # In production, this would trigger a background job
     
     return {"status": "queued", "video_id": video_id, "message": "Video queued for generation"}
 
 @app.get("/api/videos")
 async def list_videos(user: dict = Depends(require_user)):
-    conn = get_db()
-    videos = conn.execute(
-        "SELECT * FROM videos WHERE user_id = ? ORDER BY created_at DESC",
-        (user["id"],)
-    ).fetchall()
+    conn = get_db_dict()
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM videos WHERE user_id = %s ORDER BY created_at DESC",
+            (user["id"],)
+        )
+        videos = cur.fetchall()
     conn.close()
     return [dict(v) for v in videos]
 
@@ -289,11 +300,12 @@ async def upgrade_plan(plan: str = Form(...), user: dict = Depends(require_user)
     
     plan_info = PLANS[plan]
     conn = get_db()
-    conn.execute(
-        "UPDATE users SET plan = ?, videos_limit = ?, updated_at = datetime('now') WHERE id = ?",
-        (plan, plan_info["limit"], user["id"])
-    )
-    conn.commit()
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET plan = %s, videos_limit = %s, updated_at = NOW() WHERE id = %s",
+            (plan, plan_info["limit"], user["id"])
+        )
+        conn.commit()
     conn.close()
     
     return {"status": "upgraded", "plan": plan, "limit": plan_info["limit"]}
@@ -306,12 +318,14 @@ async def startup():
     
     # Create owner account if doesn't exist
     conn = get_db()
-    owner = conn.execute("SELECT id FROM users WHERE email = 'doug@viralpulse.com'").fetchone()
-    if not owner:
-        conn.execute(
-            "INSERT INTO users (email, password_hash, name, plan, videos_limit, is_owner) VALUES (?, ?, ?, 'lifetime', 999999, 1)",
-            ("doug@viralpulse.com", hash_password("viralpulse2026"), "Doug")
-        )
-        conn.commit()
-        print("Owner account created: doug@viralpulse.com / viralpulse2026")
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE email = 'doug@viralpulse.com'")
+        owner = cur.fetchone()
+        if not owner:
+            cur.execute(
+                "INSERT INTO users (email, password_hash, name, plan, videos_limit, is_owner) VALUES (%s, %s, %s, 'lifetime', 999999, TRUE)",
+                ("doug@viralpulse.com", hash_password("viralpulse2026"), "Doug")
+            )
+            conn.commit()
+            print("Owner account created: doug@viralpulse.com / viralpulse2026")
     conn.close()

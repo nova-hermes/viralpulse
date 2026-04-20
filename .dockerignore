@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.git/
+.gitignore
+*.md
+LICENSE
+.env
+.env.*
+data/
+*.mp4
+*.wav
+*.mp3
+output/
+drafts/

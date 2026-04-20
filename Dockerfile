@@ -2,14 +2,19 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps for ffmpeg and whisper
+# Install system deps (ffmpeg only)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt requirements-web.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-web.txt
+# Install ONLY web dependencies (skip whisper/google bloat)
+COPY requirements-web.txt ./
+RUN pip install --no-cache-dir -r requirements-web.txt \
+    Pillow>=10.0.0 \
+    edge-tts>=6.1.0 \
+    PyYAML>=6.0 \
+    feedparser>=6.0.0 \
+    requests>=2.31.0
 
 # Copy application
 COPY . .

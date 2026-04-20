@@ -99,7 +99,9 @@ def create_session(user_id: int) -> str:
     conn.close()
     return token
 
-def get_current_user(session_token: Optional[str] = Cookie(None)) -> Optional[dict]:
+def get_current_user_from_request(request: Request) -> Optional[dict]:
+    """Read session cookie directly from request object."""
+    session_token = request.cookies.get("session")
     if not session_token:
         return None
     conn = get_db_dict()
@@ -113,8 +115,8 @@ def get_current_user(session_token: Optional[str] = Cookie(None)) -> Optional[di
     conn.close()
     return dict(row) if row else None
 
-def require_user(session_token: Optional[str] = Cookie(None)) -> dict:
-    user = get_current_user(session_token)
+def require_user(request: Request) -> dict:
+    user = get_current_user_from_request(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
@@ -167,7 +169,7 @@ async def debug_session(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    user = get_current_user(request.cookies.get("session"))
+    user = get_current_user_from_request(request)
     return templates.TemplateResponse("index.html", {"request": request, "user": user, "plans": PLANS})
 
 @app.get("/login", response_class=HTMLResponse)
@@ -180,7 +182,7 @@ async def register_page(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    user = get_current_user(request.cookies.get("session"))
+    user = get_current_user_from_request(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
     
@@ -199,7 +201,7 @@ async def dashboard(request: Request):
 
 @app.get("/billing", response_class=HTMLResponse)
 async def billing_page(request: Request):
-    user = get_current_user(request.cookies.get("session"))
+    user = get_current_user_from_request(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
     return templates.TemplateResponse("billing.html", {

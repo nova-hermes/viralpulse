@@ -14,7 +14,8 @@ RUN pip install --no-cache-dir -r requirements-web.txt \
     edge-tts>=6.1.0 \
     PyYAML>=6.0 \
     feedparser>=6.0.0 \
-    requests>=2.31.0
+    requests>=2.31.0 \
+    jinja2==3.1.2
 
 # Copy application
 COPY . .

@@ -320,7 +320,7 @@ async def google_callback(code: str = "", state: str = ""):
                 "INSERT INTO users (email, password_hash, name) VALUES (%s, %s, %s) RETURNING id",
                 (email, hash_password(random_pass), name)
             )
-            user_id = cur.fetchone()[0]
+            user_id = cur.fetchone()["id"]
             conn.commit()
             print(f"New Google user created: {email}")
         else:
@@ -354,7 +354,7 @@ async def generate_video(
             "INSERT INTO videos (user_id, topic, niche, status) VALUES (%s, %s, %s, 'queued') RETURNING id",
             (user["id"], topic, niche)
         )
-        video_id = cur.fetchone()[0]
+        video_id = cur.fetchone()["id"]
         
         # Increment usage
         cur.execute(

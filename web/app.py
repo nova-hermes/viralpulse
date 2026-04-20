@@ -11,6 +11,7 @@ from typing import Optional
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import requests as http_requests
 
 from fastapi import FastAPI, Request, Depends, HTTPException, Form, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -128,6 +129,12 @@ PLANS = {
     "lifetime": {"name": "Lifetime", "price": 0, "limit": 999999, "features": ["Unlimited videos", "No watermark", "1080p", "Everything", "Owner access"]},
 }
 
+# ─── Google OAuth Config ──────────────────────────────────────────────
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
+
 # ─── App ──────────────────────────────────────────────────────────────
 
 app = FastAPI(title="ViralPulse", version="1.0.0")
@@ -244,6 +251,86 @@ async def login(email: str = Form(...), password: str = Form(...)):
 async def logout():
     response = RedirectResponse("/", status_code=302)
     response.delete_cookie("session")
+    return response
+
+# ─── Routes: Google OAuth ─────────────────────────────────────────────
+
+@app.get("/auth/google")
+async def google_login():
+    """Redirect to Google OAuth consent screen."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(500, "Google OAuth not configured. Set GOOGLE_CLIENT_ID env var.")
+    
+    scope = "openid email profile"
+    state = secrets.token_urlsafe(32)
+    auth_url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={GOOGLE_CLIENT_ID}&"
+        f"redirect_uri={GOOGLE_REDIRECT_URI}&"
+        f"response_type=code&"
+        f"scope={scope}&"
+        f"state={state}&"
+        f"access_type=offline&"
+        f"prompt=consent"
+    )
+    return RedirectResponse(auth_url, status_code=302)
+
+@app.get("/auth/google/callback")
+async def google_callback(code: str = "", state: str = ""):
+    """Handle Google OAuth callback."""
+    if not code:
+        raise HTTPException(400, "Missing authorization code")
+    
+    # Exchange code for tokens
+    token_resp = http_requests.post("https://oauth2.googleapis.com/token", data={
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code",
+    })
+    token_data = token_resp.json()
+    
+    if "access_token" not in token_data:
+        raise HTTPException(400, f"Failed to get access token: {token_data}")
+    
+    # Get user info from Google
+    user_resp = http_requests.get(
+        "https://www.googleapis.com/oauth2/v2/userinfo",
+        headers={"Authorization": f"Bearer {token_data['access_token']}"}
+    )
+    google_user = user_resp.json()
+    
+    email = google_user.get("email")
+    name = google_user.get("name", "")
+    
+    if not email:
+        raise HTTPException(400, "Could not get email from Google")
+    
+    # Find or create user
+    conn = get_db_dict()
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+        user = cur.fetchone()
+        
+        if not user:
+            # Create user with random password (they'll use Google to login)
+            random_pass = secrets.token_hex(32)
+            cur.execute(
+                "INSERT INTO users (email, password_hash, name) VALUES (%s, %s, %s) RETURNING id",
+                (email, hash_password(random_pass), name)
+            )
+            user_id = cur.fetchone()[0]
+            conn.commit()
+            print(f"New Google user created: {email}")
+        else:
+            user_id = user["id"]
+    conn.close()
+    
+    # Create session
+    token = create_session(user_id)
+    response = RedirectResponse("/dashboard", status_code=302)
+    response.set_cookie("session", token, httponly=True, max_age=30*24*3600, samesite="lax", secure=True, path="/")
     return response
 
 # ─── Routes: Video API ────────────────────────────────────────────────

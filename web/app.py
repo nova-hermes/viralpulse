@@ -142,6 +142,20 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "web" / "templates"))
 async def health():
     return {"status": "ok", "service": "ViralPulse"}
 
+@app.get("/debug/session")
+async def debug_session(request: Request):
+    cookies = dict(request.cookies)
+    token = cookies.get("session")
+    db_status = "no token"
+    if token:
+        conn = get_db_dict()
+        with conn.cursor() as cur:
+            cur.execute("SELECT token, user_id, expires_at FROM sessions WHERE token = %s", (token,))
+            row = cur.fetchone()
+            db_status = dict(row) if row else "token not found in DB"
+        conn.close()
+    return {"cookies": {k: v[:20]+"..." for k,v in cookies.items()}, "session_in_db": db_status}
+
 # ─── Routes: Pages ────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
@@ -207,7 +221,7 @@ async def register(email: str = Form(...), password: str = Form(...), name: str 
     
     token = create_session(user_id)
     response = RedirectResponse("/dashboard", status_code=302)
-    response.set_cookie("session", token, httponly=True, max_age=30*24*3600)
+    response.set_cookie("session", token, httponly=True, max_age=30*24*3600, samesite="lax", secure=True, path="/")
     return response
 
 @app.post("/api/login")
@@ -223,7 +237,7 @@ async def login(email: str = Form(...), password: str = Form(...)):
     
     token = create_session(user["id"])
     response = RedirectResponse("/dashboard", status_code=302)
-    response.set_cookie("session", token, httponly=True, max_age=30*24*3600)
+    response.set_cookie("session", token, httponly=True, max_age=30*24*3600, samesite="lax", secure=True, path="/")
     return response
 
 @app.get("/api/logout")
